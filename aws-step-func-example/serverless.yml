@@ -1,0 +1,88 @@
+service:
+  name: aws-step-func-example
+
+plugins:
+  - serverless-webpack
+  - serverless-step-functions
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:BatchGet*"
+        - "dynamodb:DescribeStream"
+        - "dynamodb:DescribeTable"
+        - "dynamodb:Get*"
+        - "dynamodb:Query"
+        - "dynamodb:Scan"
+        - "dynamodb:BatchWrite*"
+        - "dynamodb:CreateTable"
+        - "dynamodb:Delete*"
+        - "dynamodb:Update*"
+        - "dynamodb:PutItem"
+      Resource:
+        Fn::GetAtt: [orderTable, Arn]
+
+resources:
+  Resources:
+    orderTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: order-table
+        BillingMode: PROVISIONED
+        AttributeDefinitions: 
+          - AttributeName : Id
+            AttributeType : S
+        KeySchema:
+          - AttributeName: Id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 3
+          WriteCapacityUnits: 3
+
+functions:
+  validate-order:
+    handler: src/validateOrder.handler
+  create-order:
+    handler: src/createOrder.handler
+  validate-creditCard:
+    handler: src/validateCreditCard.handler
+  mark-order-as-proccessed:
+    handler: src/markOrderAsProccessed.handler
+
+stepFunctions:
+  stateMachines:
+    orderStateMachine:
+      events:
+        - http:
+            path: /order
+            method: POST
+      name: orderStateMachine
+      definition:
+        Comment: "Order State Machine"
+        StartAt: ValidateOrder
+        States:
+          ValidateOrder:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [validate-order, Arn]
+            Next: CreateOrder
+          CreateOrder:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [create-order, Arn]
+            Next: ValidateCreditCard
+          ValidateCreditCard:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [validate-creditCard, Arn]
+            Next: MarkOrderAsProccessed
+          MarkOrderAsProccessed:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [mark-order-as-proccessed, Arn]
+            End: true
+      tags:
+        Name: orderStateMachine

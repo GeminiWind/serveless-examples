@@ -1,0 +1,83 @@
+service:
+  name: aws-fanout-example
+
+plugins:
+  - serverless-webpack
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "sns:Publish"
+      Resource: !Ref fanoutTopic
+
+resources:
+  Resources:
+    fanoutQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: fanout-queue
+        VisibilityTimeout: 30
+        ReceiveMessageWaitTimeSeconds: 20
+    fanoutTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: fanout-topic
+        Subscription:
+          - Endpoint:
+              !GetAtt 
+                - fanoutQueue
+                - Arn
+            Protocol: sqs
+    fanoutQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Id:
+            Fn::Join:
+              - ""
+              - - !GetAtt 
+                  - fanoutQueue
+                  - Arn
+                - "/"
+                - "SQSSendMessagePolicy"
+          Statement:
+            - Sid: "SendMessagePolicy"
+              Effect: "Allow"
+              Principal:
+                AWS: "*"
+              Action:
+                - "SQS:SendMessage"
+              Resource:
+                !GetAtt 
+                  - fanoutQueue
+                  - Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref fanoutTopic
+        Queues:
+          - !GetAtt 
+              - fanoutQueue
+              - QueueName
+functions:
+  emitMessage:
+    handler: src/pushMessage.handler
+    environment:
+      TOPIC_ARN: !Ref fanoutTopic
+    events:
+      - http:
+          method: post
+          path: message
+  fanoutLambdaTrigger:
+    handler: src/handler.handler
+    events:
+      - sqs:
+          arn:
+            !GetAtt 
+              - fanoutQueue
+              - Arn
+          batchSize: 10
+    

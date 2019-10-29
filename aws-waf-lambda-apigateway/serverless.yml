@@ -1,0 +1,64 @@
+service:
+  name: aws-waf-lambda-apigateway
+
+plugins:
+  - serverless-webpack
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+
+resources:
+  Resources:
+    MyIPSetBlacklist: 
+      Type: AWS::WAF::IPSet
+      Properties: 
+        Name: IPSet for blacklisted IP adresses
+        IPSetDescriptors: 
+          - 
+            Type: "IPV4"
+            Value: "10.0.0/16"
+    MyIPSetRateBasedRule:
+      Type: AWS::WAFRegional::Rule
+      Properties: 
+        Predicates: 
+          - DataId:
+              Ref: MyIPSetBlacklist
+            Negated: false
+            Type: IPMatch
+        MetricName: MyIPSetRateBasedRule
+        Name: MyIPSetRateBasedRule
+    MyWebACL:
+      Type: AWS::WAFRegional::WebACL
+      Properties: 
+        Name: MyWebACL
+        DefaultAction: 
+          Type: ALLOW
+        MetricName: MyWebACL
+        Rules: 
+          - 
+            Action: 
+              Type: BLOCK
+            Priority: 1
+            RuleId: 
+              Ref: MyIPSetRateBasedRule
+    MyWebACLAssiociation:
+      Type: AWS::WAFRegional::WebACLAssociation
+      Properties: 
+        ResourceArn:
+          Fn::Join:
+            - "/"
+            - 
+              - Fn::Join: [":", ["arn:aws:execute-api", {"Ref": "AWS::Region"}, {"Ref":"AWS::AccountId"}, {"Ref": "ApiGatewayRestApi"}]]
+              - "*"
+        WebACLId:
+          Ref: MyWebACL
+            
+functions:
+  simpleFunc:
+    handler: src/handler.handler
+    events:
+      - http:
+          method: get
+          path: developers
+    
