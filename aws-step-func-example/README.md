@@ -1,4 +1,4 @@
-# ⚡ serverless-waf-apigatewauy-lambda
+# ⚡ serverless-aws-step-functions
 
 Architecture
 
