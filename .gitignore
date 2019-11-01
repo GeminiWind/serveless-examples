@@ -8,4 +8,5 @@
 # Webpack directories
 **/.webpack
 
+**/yarn.lock
 **/yarn-error.log

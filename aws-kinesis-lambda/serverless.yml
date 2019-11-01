@@ -1,0 +1,53 @@
+service:
+  name: serverless-aws-kinesis-lambda
+
+plugins:
+  - serverless-webpack
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'ap-southeast-2'}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "kinesis:GetRecords"
+        - "kinesis:PutRecord"
+        - "kinesis:PutRecords"
+      Resource:
+        Fn::GetAtt: [KinesisStream, Arn]
+
+resources:
+  Resources:
+    KinesisStream:
+      Type: AWS::Kinesis::Stream
+      Properties:
+        Name: MyKinesisStream 
+        RetentionPeriodHours: 48 
+        ShardCount: 1
+        Tags: 
+            - Key: Stage
+              Value: ${opt:stage}
+functions:
+  read-record-from-stream:
+    handler: src/handler.readRecord
+    timeout: 5
+    memorySize: 128
+    events:
+      - stream:
+          type: kinesis
+          arn:
+            Fn::GetAtt:
+              - KinesisStream
+              - Arn
+  put-record-to-stream:
+    handler: src/handler.putRecord
+    timeout: 5
+    memorySize: 128
+    environment:
+      STREAM_NAME: !Ref KinesisStream
+    events:
+      - http:
+          method: post
+          path: records
