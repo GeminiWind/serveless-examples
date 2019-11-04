@@ -1,0 +1,114 @@
+service:
+  name: serverless-lambda-cognito-authentication
+
+plugins:
+  - serverless-webpack
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'ap-southeast-2'}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "cognito-identity:*"
+        - "cognito-sync:*"
+        - "cognito-idp:*"
+      Resource: "*"
+
+resources:
+  Resources:
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: user-pool-example
+        MfaConfiguration: "OFF"
+        UsernameAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: False
+            RequireNumbers: True
+            RequireSymbols: True
+            RequireUppercase: True
+        Schema:
+          - Name: email
+            AttributeDataType: String
+            Mutable: false
+            Required: true
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: client-example
+        UserPoolId: !Ref CognitoUserPool
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - "USER_PASSWORD_AUTH"
+          - "ADMIN_NO_SRP_AUTH"
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      DependsOn:
+        - ApiGatewayRestApi
+      Properties:
+        Name: cognito-authorizer
+        IdentitySource: method.request.header.Authorization
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        Type: COGNITO_USER_POOLS
+        ProviderARNs:
+          - Fn::GetAtt: [CognitoUserPool, Arn]
+
+functions:
+  authenticate:
+    handler: src/handler.authenticate
+    timeout: 5
+    memorySize: 128
+    environment:
+      COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+      COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+    events:
+      - http:
+          method: post
+          path: authenticate
+  register:
+    handler: src/handler.register
+    timeout: 5
+    memorySize: 128
+    environment:
+      COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+      COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+    events:
+      - http:
+          method: post
+          path: register
+  public-func:
+    handler: src/handler.noAuth
+    timeout: 5
+    memorySize: 128
+    events:
+      - http:
+          method: get
+          path: public
+  private-func:
+    handler: src/handler.requireAuth
+    timeout: 5
+    memorySize: 128
+    events:
+      - http:
+          method: get
+          path: private
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+  pre-signup:
+    handler: src/hooks/pre-signup.handler
+    timeout: 5
+    memorySize: 128
+    events:
+      - cognitoUserPool:
+          pool: user-pool-example # must be name of cognito user pool
+          trigger: PreSignUp
+          existing: true
