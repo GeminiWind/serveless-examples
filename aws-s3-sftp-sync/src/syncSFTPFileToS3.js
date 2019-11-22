@@ -19,7 +19,10 @@ const syncSFTPFileToS3 = async (event, _, callback) => {
             await s3.upload({
                 Body: writeStream,
                 Key: body.mappedKey,
-                Bucket: config.s3Bucket
+                Bucket: config.s3Bucket,
+                Metadata: {
+                    Synced: "true"
+                }
             }).promise();
         });
 
