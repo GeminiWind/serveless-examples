@@ -1,0 +1,63 @@
+service:
+  name: aws-s3-sftp-sync
+
+plugins:
+  - serverless-webpack
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  iamRoleStatements:
+  - Effect: "Allow"
+    Action:
+      - "sqs:*"
+    Resource:
+      Fn::GetAtt:
+        - SyncedItemsQueue
+        - Arn
+  - Effect: "Allow"
+    Action:
+      - "s3:*"
+    Resource: "arn:aws:s3:::*"
+
+resources:
+  Resources:
+    SyncedItemsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: "synced-items"
+        ReceiveMessageWaitTimeSeconds: 20
+        VisibilityTimeout: 900
+
+functions:
+  sync-s3-to-sftp-func:
+    handler: src/handler.syncS3ToSFTP
+    timeout: 900
+    memorySize: 3000
+    events:
+      - s3:
+          bucket: "my-sftp-synced-bucket"
+          event: s3:ObjectCreated:*
+          existing: true
+  list-sftp-files-to-be-synced-func:
+    handler: src/handler.listSFTPFilesToBeSynced
+    timeout: 900
+    memorySize: 256
+    environment:
+      QUEUE_URL: !Ref SyncedItemsQueue
+    events:
+      - schedule:
+          rate: rate(10 minutes)
+          enabled: true
+  sync-single-sftp-file-to-s3-func: 
+    handler: src/handler.syncSFTPFileToS3
+    timeout: 900
+    memorySize: 256
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - SyncedItemsQueue
+              - Arn
+          batchSize: 2
+  
