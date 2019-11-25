@@ -1,5 +1,9 @@
-import syncS3ToSFTP from './syncS3ToSFTP';
-import listSFTPFilesToBeSynced from './listSFTPFilesToBeSynced';
-import syncSFTPFileToS3 from './syncSFTPFileToS3';
+const syncS3ToSFTP = require('./syncS3ToSFTP');
+const listSFTPFilesToBeSynced = require('./listSFTPFilesToBeSynced');
+const syncSFTPFileToS3 = require('./syncSFTPFileToS3');
 
-export { syncS3ToSFTP, listSFTPFilesToBeSynced, syncSFTPFileToS3 };
+module.exports = {
+    syncS3ToSFTP,
+    listSFTPFilesToBeSynced,
+    syncSFTPFileToS3,
+}

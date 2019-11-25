@@ -1,8 +1,8 @@
-import Bluebird from 'bluebird';
-import AWS from 'aws-sdk';
-import SFTPClient from 'ssh2-sftp-client';
-import get from 'lodash.get';
-import config from './config';
+const Bluebird  = require('bluebird');
+const AWS = require('aws-sdk');
+const SFTPClient = require('ssh2-sftp-client');
+const get = require('lodash.get');
+const config = require('./config');
 
 const syncS3ToSFTP = async (event, _, callback) => {
     let S3Records
@@ -41,4 +41,4 @@ const syncS3ToSFTP = async (event, _, callback) => {
     callback(null, 'Done');
 }
 
-export default syncS3ToSFTP;
+module.exports = syncS3ToSFTP;

@@ -1,7 +1,6 @@
-import fs from 'fs'
-import AWS from 'aws-sdk';
-import SFTPClient from 'ssh2-sftp-client';
-import config from './config';
+const AWS = require('aws-sdk');
+const SFTPClient = require('ssh2-sftp-client');
+const config = require('./config');
 
 const syncSFTPFileToS3 = async (event, _, callback) => {
     const s3 = new AWS.S3();
@@ -31,4 +30,4 @@ const syncSFTPFileToS3 = async (event, _, callback) => {
     callback(null, 'Done');
 }
 
-export default syncSFTPFileToS3;
+module.exports = syncSFTPFileToS3;

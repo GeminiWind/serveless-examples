@@ -1,10 +1,10 @@
-export default {
+module.exports = {
   sftpConfig: {
-    host: process.env.SFTP_HOST,
+    host: 'test.rebex.net',
     port: 22,
-    username: process.env.SFTP_USERNAME,
-    password: process.env.SFTP_PASSWORD
+    username: 'demo',
+    password: 'password'
   },
-  sftpDir: process.env.SFTP_DIR,
-  s3Bucket: process.env.S3_SYNCED_BUCKET
+  sftpDir: 'test',
+  s3Bucket: 'my-sftp-synced-bucket'
 }

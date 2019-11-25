@@ -1,6 +1,6 @@
-import Bluebird from 'bluebird';
-import flatten from 'lodash.flatten';
-import config from '../config';
+const Bluebird = require('bluebird');
+const flatten = require('lodash.flatten');
+const config = require('../config');
 
 const listSFTPFiles = async (sftp, dir = config.sftpConfig) => {
     const list = await sftp.list(dir);
@@ -33,4 +33,4 @@ const listSFTPFiles = async (sftp, dir = config.sftpConfig) => {
     return flatten(result, true);
 }
 
-export default listSFTPFiles;
+module.exports = listSFTPFiles

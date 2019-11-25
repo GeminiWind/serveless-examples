@@ -1,8 +1,8 @@
-import AWS from 'aws-sdk';
-import SFTPClient from 'ssh2-sftp-client';
-import moment from 'moment';
-import listSFTPFiles from './helpers/listSFTPFiles';
-import config from './config';
+const AWS = require('aws-sdk');
+const SFTPClient = require('ssh2-sftp-client');
+const moment = require('moment');
+const listSFTPFiles = require('./helpers/listSFTPFiles');
+const config = require('./config');
 
 const listSFTPFilesToBeSynced = async (event, context, cb) => {
     const s3 = new AWS.S3();
@@ -67,7 +67,7 @@ const listSFTPFilesToBeSynced = async (event, context, cb) => {
     if (entries && entries.length > 0) {
         console.log('Putting these entries to queue', entries);
         await sqs.sendMessageBatch({
-            QueueUrl: process.env.QUEUE_URL,
+            QueueUrl: 'https://sqs.ap-southeast-2.amazonaws.com/528576633425/synced-item-queue',
             Entries: entries,
         }).promise();
     }
@@ -75,4 +75,7 @@ const listSFTPFilesToBeSynced = async (event, context, cb) => {
     cb(null, 'Done');
 }
 
-export default listSFTPFilesToBeSynced;
+listSFTPFilesToBeSynced(undefined, undefined, (err, data) => {
+    console.log(err);
+    console.log(data);
+});
