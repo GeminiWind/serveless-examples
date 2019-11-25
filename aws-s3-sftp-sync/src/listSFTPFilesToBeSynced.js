@@ -1,4 +1,5 @@
 const AWS = require('aws-sdk');
+const Bluebird = require('bluebird');
 const SFTPClient = require('ssh2-sftp-client');
 const moment = require('moment');
 const listSFTPFiles = require('./helpers/listSFTPFiles');
@@ -37,14 +38,14 @@ const listSFTPFilesToBeSynced = async (event, context, cb) => {
     const s3Keys = s3Objs.map(obj => obj.Key);
     const notSyncedFiles = sftpFiles.filter(sftpFile => !s3Keys.includes(sftpFile.mappedKey));
     if (notSyncedFiles && notSyncedFiles.length > 0) {
-        console.log(`Found ${notSyncedFiles.length} files has not been synced`);
+        console.log(`Found ${notSyncedFiles.length} files has not been synced`, notSyncedFiles);
     }
 
     // filter mismatched file content
     const mismatchFiles = sftpFiles.filter((sftpFile) => {
         const mappedS3Object = s3Objs.find(s3Obj => s3Obj.Key === sftpFile.mappedKey);
 
-        if (moment(sftpFile.modifyTime).diff(moment(mappedS3Object.LastModified), 'minutes') > 15) {
+        if (mappedS3Object && moment(sftpFile.modifyTime).diff(moment(mappedS3Object.LastModified), 'minutes') > 15) {
             return true;
         }
 
@@ -52,30 +53,36 @@ const listSFTPFilesToBeSynced = async (event, context, cb) => {
     });
 
     if (mismatchFiles && mismatchFiles.length > 0) {
-        console.log(`Found ${mismatchFiles.length} files has mismatched`);
+        console.log(`Found ${mismatchFiles.length} files has mismatched`, mismatchFiles);
     }
 
     // TODO: filter file < 512MB because Lambda temporary file max is 512MB
     const entries = [...notSyncedFiles, ...mismatchFiles]
         .map(sftpFile => ({
-            Id: sftpFile.mappedKey,
+            Id: sftpFile.name.replace('.', '_'),
             MessageBody: JSON.stringify({
                 mappedKey: sftpFile.mappedKey,
             })
          }))
 
     if (entries && entries.length > 0) {
-        console.log('Putting these entries to queue', entries);
-        await sqs.sendMessageBatch({
-            QueueUrl: 'https://sqs.ap-southeast-2.amazonaws.com/528576633425/synced-item-queue',
-            Entries: entries,
-        }).promise();
+        let chunks;
+        if (entries.length <=10) {
+            chunks = [entries];
+        } else {
+            chunks = Array.from(Array(Math.ceil(entries.length / 10)),   (_, i) => entries.slice(i * 10, i * 10 + 10))
+        }
+        console.log('Putting these entries to queue', chunks);
+        await Bluebird.map(chunks, async (chunk) => {
+            await sqs.sendMessageBatch({
+                QueueUrl: process.env.QUEUE_URL,
+                Entries: chunk,
+            }).promise();
+        }, { concurrency: 1})
+       
     }
    
     cb(null, 'Done');
 }
 
-listSFTPFilesToBeSynced(undefined, undefined, (err, data) => {
-    console.log(err);
-    console.log(data);
-});
+module.exports = listSFTPFilesToBeSynced

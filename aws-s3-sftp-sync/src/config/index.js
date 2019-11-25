@@ -5,6 +5,6 @@ module.exports = {
     username: 'demo',
     password: 'password'
   },
-  sftpDir: 'test',
+  sftpDir: 'pub',
   s3Bucket: 'my-sftp-synced-bucket'
 }

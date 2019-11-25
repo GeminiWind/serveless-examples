@@ -1,5 +1,6 @@
 const stream = require('stream');
 const AWS = require('aws-sdk');
+const Bluebird = require('bluebird');
 const SFTPClient = require('ssh2-sftp-client');
 const config = require('./config');
 
@@ -13,7 +14,7 @@ const syncSFTPFileToS3 = async (event, _, callback) => {
             const body = JSON.parse(record.body);
 
             const dstStream = new stream.PassThrough();
-            await sftp.get(`${config.sftpDir}/${body.mappedKey}`, dstStream);
+            await client.get(`${config.sftpDir}/${body.mappedKey}`, dstStream);
 
             await s3.upload({
                 Body: dstStream,

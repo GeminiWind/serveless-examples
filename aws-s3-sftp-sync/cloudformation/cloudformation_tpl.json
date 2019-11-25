@@ -246,7 +246,7 @@
         "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncEventsRuleSchedule1": {
             "Type": "AWS::Events::Rule",
             "Properties": {
-                "ScheduleExpression": "rate(50 minutes)",
+                "ScheduleExpression": "rate(10 minutes)",
                 "State": "ENABLED",
                 "Targets": [
                     {
