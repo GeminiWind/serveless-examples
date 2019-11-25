@@ -12,12 +12,11 @@ const syncSFTPFileToS3 = async (event, _, callback) => {
         await Bluebird.map(event.Records, async (record) => {
             const body = JSON.parse(record.body);
 
-            const writeStream = fs.createWriteStream(`/temp/${new Date().getTime()}`);
-
-            await sftp.get(`${config.sftpDir}/${body.mappedKey}`, writeStream);
+            const buf = new Buffer();
+            await sftp.get(`${config.sftpDir}/${body.mappedKey}`, buf);
 
             await s3.upload({
-                Body: writeStream,
+                Body: buf,
                 Key: body.mappedKey,
                 Bucket: config.s3Bucket,
                 Metadata: {

@@ -64,11 +64,14 @@ const listSFTPFilesToBeSynced = async (event, context, cb) => {
             })
          }))
 
-    await sqs.sendMessageBatch({
-        QueueUrl: process.env.QUEUE_URL,
-        Entries: entries,
-    }).promise();
-
+    if (entries && entries.length > 0) {
+        console.log('Putting these entries to queue', entries);
+        await sqs.sendMessageBatch({
+            QueueUrl: process.env.QUEUE_URL,
+            Entries: entries,
+        }).promise();
+    }
+   
     cb(null, 'Done');
 }
 

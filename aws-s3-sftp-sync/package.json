@@ -20,6 +20,7 @@
     "aws-sdk": "^2.513.0",
     "bluebird": "^3.7.1",
     "lodash.flatten": "^4.4.0",
+    "lodash.get": "^4.4.2",
     "moment": "^2.24.0",
     "ssh2-sftp-client": "^4.2.3"
   }

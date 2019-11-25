@@ -1,6 +1,7 @@
 import Bluebird from 'bluebird';
 import AWS from 'aws-sdk';
 import SFTPClient from 'ssh2-sftp-client';
+import get from 'lodash.get';
 import config from './config';
 
 const syncS3ToSFTP = async (event, _, callback) => {
@@ -21,7 +22,7 @@ const syncS3ToSFTP = async (event, _, callback) => {
 
         await Bluebird.map(S3Records, async (S3Record) => {
             const obj = await s3.getObject(S3Record).promise();
-            if (obj.Metadata && obj.Metadata.Synced !== "true") {
+            if (get(obj, "Metadata.Synced") !== "true") {
                 console.log(`Syncing ${S3Record.Key} in bucket ${S3Record.Bucket}...`);
                 try {
                     await client.put(Buffer.from(obj.Body), `${config.sftpDir}${S3Record.Key}`);
