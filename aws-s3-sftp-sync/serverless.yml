@@ -25,7 +25,7 @@ resources:
     SyncedItemsQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: "synced-items"
+        QueueName: ${env:QUEUE_NAME}
         ReceiveMessageWaitTimeSeconds: 20
         VisibilityTimeout: 900
 
@@ -45,6 +45,11 @@ functions:
     memorySize: 256
     environment:
       QUEUE_URL: !Ref SyncedItemsQueue
+      SFTP_HOST: ${env:SFTP_HOST}
+      SFTP_USERNAME: ${env:SFTP_USERNAME}
+      SFTP_PASSWORD: ${env:SFTP_PASSWORD}
+      SFTP_DIR: ${env:SFTP_DIR}
+      S3_SYNCED_BUCKET: ${env:S3_SYNCED_BUCKET}
     events:
       - schedule:
           rate: rate(10 minutes)
@@ -53,6 +58,12 @@ functions:
     handler: src/handler.syncSFTPFileToS3
     timeout: 900
     memorySize: 256
+    environment:
+      SFTP_HOST: ${env:SFTP_HOST}
+      SFTP_USERNAME: ${env:SFTP_USERNAME}
+      SFTP_PASSWORD: ${env:SFTP_PASSWORD}
+      SFTP_DIR: ${env:SFTP_DIR}
+      S3_SYNCED_BUCKET: ${env:S3_SYNCED_BUCKET}
     events:
       - sqs:
           arn:

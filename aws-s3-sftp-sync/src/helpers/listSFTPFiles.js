@@ -2,7 +2,7 @@ import Bluebird from 'bluebird';
 import flatten from 'lodash.flatten';
 import config from '../config';
 
-const listSFTPFiles = async (sftp, dir = config.sftpConfig) => {
+const listSFTPFiles = async (sftp, dir = config.sftpDir) => {
     const list = await sftp.list(dir);
 
     const result = await Bluebird.map(list, async (e) => {
@@ -11,7 +11,7 @@ const listSFTPFiles = async (sftp, dir = config.sftpConfig) => {
             if (dir === config.sftpDir) {
                 mappedKey = e.name;
             } else {
-                mappedKey = `${dir}/${e.name}`.substr(config.sftpConfig.length -1);
+                mappedKey = `${dir}/${e.name}`.substr(config.sftpDir.length + 1);
             }
             return {
                 name: e.name,
@@ -24,7 +24,7 @@ const listSFTPFiles = async (sftp, dir = config.sftpConfig) => {
 
         // directory
         if (e.type === 'd') {
-            const files = await getFileInfoFromDir(sftp, `${dir}/${e.name}`);
+            const files = await listSFTPFiles(sftp, `${dir}/${e.name}`);
 
             return files
         } 
