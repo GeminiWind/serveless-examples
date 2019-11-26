@@ -21,11 +21,12 @@ const syncS3ToSFTP = async (event, _, callback) => {
         await client.connect(config.sftpConfig);
 
         await Bluebird.map(S3Records, async (S3Record) => {
-            const obj = await s3.getObject(S3Record).promise();
-            if (get(obj, "Metadata.Synced") !== "true") {
-                console.log(`Syncing ${S3Record.Key} in bucket ${S3Record.Bucket}...`);
+            const objMetaData = await s3.headObject(S3Record).promise();
+            if (get(objMetaData, "Metadata.Synced") !== "true") {
+                console.log(`Syncing ${S3Record.Key} in bucket ${S3Record.Bucket} to SFTP server...`);
                 try {
-                    await client.put(Buffer.from(obj.Body), `${config.sftpDir}${S3Record.Key}`);
+                    const readStream = s3.getObject(S3Record).createReadStream();
+                    await client.put(readStream, `${config.sftpDir}/${S3Record.Key}`);
                 } catch (error) {
                     console.log('Error in syncing object to SFTP', err);
 
