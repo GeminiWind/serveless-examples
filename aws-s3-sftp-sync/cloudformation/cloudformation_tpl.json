@@ -1,0 +1,328 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "The AWS CloudFormation template for this Serverless application",
+    "Parameters": {
+        "sftpHost": {
+          "Type": "String",
+          "Description": "SFTP Host"
+        },
+        "sftpUsername": {
+            "Type": "String",
+            "Description": "SFTP Username"
+        },
+        "sftpPassword": {
+            "Type": "String",
+            "Description": "SFTP Password"
+        },
+        "sftpDir": {
+            "Type": "String",
+            "Description": "SFTP Directory Path to be synced with S3. The path must not contain  / at the end"
+        },
+        "s3SyncedBucket": {
+            "Type": "String",
+            "Description": "S3 target bucket name"
+        },
+        "queueName": {
+            "Type": "String",
+            "Description": "Distributed queue name to deliver to-be-synced file to Lambda"
+        }
+    },
+    "Resources": {
+        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": "/aws/lambda/aws-s3-sftp-sync-dev-list-sftp-files-to-be-synced-func"
+            }
+        },
+        "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+                "LogGroupName": "/aws/lambda/aws-s3-sftp-sync-dev-sync-single-sftp-file-to-s3-func"
+            }
+        },
+        "IamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": {
+                            "Fn::Join": [
+                                "-",
+                                [
+                                    "dev",
+                                    "aws-s3-sftp-sync",
+                                    "lambda"
+                                ]
+                            ]
+                        },
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:CreateLogStream"
+                                    ],
+                                    "Resource": [
+                                        {
+                                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/aws-s3-sftp-sync-dev*:*"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:PutLogEvents"
+                                    ],
+                                    "Resource": [
+                                        {
+                                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/aws-s3-sftp-sync-dev*:*:*"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "sqs:*"
+                                    ],
+                                    "Resource": {
+                                        "Fn::GetAtt": [
+                                            "SyncedItemsQueue",
+                                            "Arn"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "s3:*"
+                                    ],
+                                    "Resource": "arn:aws:s3:::*"
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "sqs:ReceiveMessage",
+                                        "sqs:DeleteMessage",
+                                        "sqs:GetQueueAttributes"
+                                    ],
+                                    "Resource": [
+                                        {
+                                            "Fn::GetAtt": [
+                                                "SyncedItemsQueue",
+                                                "Arn"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "Path": "/",
+                "RoleName": {
+                    "Fn::Join": [
+                        "-",
+                        [
+                            "aws-s3-sftp-sync",
+                            "dev",
+                            {
+                                "Ref": "AWS::Region"
+                            },
+                            "lambdaRole"
+                        ]
+                    ]
+                }
+            }
+        },
+        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+                    "S3Bucket": "s3-sftp-sync-source-code",
+                    "S3Key": "aws-s3-sftp-sync.zip"
+                },
+                "FunctionName": "aws-s3-sftp-sync-dev-list-sftp-files-to-be-synced-func",
+                "Handler": "src/handler.listSFTPFilesToBeSynced",
+                "MemorySize": 256,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "IamRoleLambdaExecution",
+                        "Arn"
+                    ]
+                },
+                "Runtime": "nodejs10.x",
+                "Timeout": 900,
+                "Environment": {
+                    "Variables": {
+                        "QUEUE_URL": {
+                            "Ref": "SyncedItemsQueue"
+                        },
+                        "SFTP_HOST": {
+                            "Ref": "sftpHost"
+                        },
+                        "SFTP_USERNAME": {
+                            "Ref": "sftpUsername"
+                        },
+                        "SFTP_PASSWORD": {
+                            "Ref": "sftpPassword"
+                        },
+                        "SFTP_DIR": {
+                            "Ref": "sftpDir"
+                        },
+                        "S3_SYNCED_BUCKET":  {
+                            "Ref": "s3SyncedBucket"
+                        }
+                    }
+                }
+            },
+            "DependsOn": [
+                "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLogGroup",
+                "IamRoleLambdaExecution"
+            ]
+        },
+        "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+                    "S3Bucket": "s3-sftp-sync-source-code",
+                    "S3Key": "aws-s3-sftp-sync.zip"
+                },
+                "FunctionName": "aws-s3-sftp-sync-dev-sync-single-sftp-file-to-s3-func",
+                "Handler": "src/handler.syncSFTPFileToS3",
+                "MemorySize": 256,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "IamRoleLambdaExecution",
+                        "Arn"
+                    ]
+                },
+                "Runtime": "nodejs10.x",
+                "Timeout": 900,
+                "Environment": {
+                    "Variables": {
+                        "QUEUE_URL": {
+                            "Ref": "SyncedItemsQueue"
+                        },
+                        "SFTP_HOST": {
+                            "Ref": "sftpHost"
+                        },
+                        "SFTP_USERNAME": {
+                            "Ref": "sftpUsername"
+                        },
+                        "SFTP_PASSWORD": {
+                            "Ref": "sftpPassword"
+                        },
+                        "SFTP_DIR": {
+                            "Ref": "sftpDir"
+                        },
+                        "S3_SYNCED_BUCKET":  {
+                            "Ref": "s3SyncedBucket"
+                        }
+                    }
+                }
+            },
+            "DependsOn": [
+                "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncLogGroup",
+                "IamRoleLambdaExecution"
+            ]
+        },
+        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncEventsRuleSchedule1": {
+            "Type": "AWS::Events::Rule",
+            "Properties": {
+                "ScheduleExpression": "rate(50 minutes)",
+                "State": "ENABLED",
+                "Targets": [
+                    {
+                        "Arn": {
+                            "Fn::GetAtt": [
+                                "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLambdaFunction",
+                                "Arn"
+                            ]
+                        },
+                        "Id": "list-sftp-files-to-be-synced-funcSchedule"
+                    }
+                ]
+            }
+        },
+        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLambdaPermissionEventsRuleSchedule1": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLambdaFunction",
+                        "Arn"
+                    ]
+                },
+                "Action": "lambda:InvokeFunction",
+                "Principal": "events.amazonaws.com",
+                "SourceArn": {
+                    "Fn::GetAtt": [
+                        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncEventsRuleSchedule1",
+                        "Arn"
+                    ]
+                }
+            }
+        },
+        "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncEventSourceMappingSQSSyncedItemsQueue": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": "IamRoleLambdaExecution",
+            "Properties": {
+                "BatchSize": 2,
+                "EventSourceArn": {
+                    "Fn::GetAtt": [
+                        "SyncedItemsQueue",
+                        "Arn"
+                    ]
+                },
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncLambdaFunction",
+                        "Arn"
+                    ]
+                },
+                "Enabled": "True"
+            }
+        },
+        "SyncedItemsQueue": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+                "QueueName": {
+                    "Ref": "queueName"
+                },
+                "ReceiveMessageWaitTimeSeconds": 20,
+                "VisibilityTimeout": 900
+            }
+        }
+    },
+    "Outputs": {
+        "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function",
+            "Value": {
+                "Ref": "ListDashsftpDashfilesDashtoDashbeDashsyncedDashfuncLambdaFunction"
+            }
+        },
+        "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function",
+            "Value": {
+                "Ref": "SyncDashsingleDashsftpDashfileDashtoDashs3DashfuncLambdaFunction"
+            }
+        }
+    }
+}

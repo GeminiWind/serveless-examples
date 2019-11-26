@@ -1,10 +1,10 @@
 export default {
   sftpConfig: {
-    host: 'example.com',
+    host: process.env.SFTP_HOST,
     port: 22,
-    username: 'red-don',
-    password: 'my-secret'
+    username: process.env.SFTP_USERNAME,
+    password: process.env.SFTP_PASSWORD
   },
-  sftpDir: '/',
-  s3Bucket: 'my-sftp-synced-bucket'
+  sftpDir: process.env.SFTP_DIR,
+  s3Bucket: process.env.S3_SYNCED_BUCKET
 }
